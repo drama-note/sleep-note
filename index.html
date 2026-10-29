@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>睡眠筆記</title>
+<meta name="description" content="不用麥克風的睡眠紀錄，手動記錄、找出睡不好的原因">
+<meta name="theme-color" content="#555934">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="睡眠筆記">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --primary:#555934;
+  --primary-soft:#e7e8d9;
+  --primary-ink:#ffffff;
+  --bg:#f5f4ee;
+  --card:#ffffff;
+  --text:#2b2c22;
+  --muted:#7c7d70;
+  --line:#e4e3da;
+  --good:#6f7a3a;
+  --bad:#b0623f;
+  --radius:20px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --primary:#a9ae7a;
+    --primary-soft:#33351f;
+    --primary-ink:#1c1d16;
+    --bg:#16170f;
+    --card:#212219;
+    --text:#ecebe1;
+    --muted:#9a9b8c;
+    --line:#2f3026;
+    --good:#b3bd73;
+    --bad:#d98b68;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  font-size:16px;line-height:1.5;min-height:100dvh;
+  padding-top:var(--safe-t);
+  padding-bottom:calc(88px + var(--safe-b));
+  overscroll-behavior-y:none;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+.wrap{max-width:520px;margin:0 auto;padding:0 16px}
+
+/* header */
+header{padding:20px 0 8px}
+header h1{font-size:26px;font-weight:700;margin:0;letter-spacing:.02em}
+header p{margin:2px 0 0;color:var(--muted);font-size:14px}
+
+/* cards */
+.card{background:var(--card);border-radius:var(--radius);padding:18px;margin:12px 0;border:1px solid var(--line)}
+.card h2{font-size:15px;font-weight:600;margin:0 0 12px;color:var(--muted);letter-spacing:.04em}
+.big{font-size:40px;font-weight:700;line-height:1.1;letter-spacing:-.01em}
+.big small{font-size:16px;font-weight:500;color:var(--muted);margin-left:4px}
+.row{display:flex;gap:12px}
+.row>*{flex:1}
+.stat{background:var(--primary-soft);border-radius:16px;padding:14px}
+.stat .v{font-size:22px;font-weight:700}
+.stat .l{font-size:13px;color:var(--muted)}
+.muted{color:var(--muted)}
+.empty{text-align:center;padding:32px 12px;color:var(--muted)}
+.empty .moon{font-size:44px;display:block;margin-bottom:8px;opacity:.7}
+
+/* views */
+.view{display:none;animation:fade .2s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* bottom nav */
+nav.tabbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:color-mix(in srgb,var(--card) 92%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+  padding-bottom:var(--safe-b);
+}
+nav.tabbar .inner{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 72px 1fr 1fr;align-items:center;height:68px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted);height:100%;justify-content:center}
+.tab svg{width:24px;height:24px}
+.tab.active{color:var(--primary);font-weight:600}
+.fab{
+  width:60px;height:60px;border-radius:50%;margin:0 auto;transform:translateY(-14px);
+  background:var(--primary);color:var(--primary-ink);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 18px rgba(40,42,20,.28);
+}
+.fab svg{width:28px;height:28px}
+.fab:active{transform:translateY(-14px) scale(.94)}
+
+/* bar chart */
+.bars{display:flex;align-items:flex-end;gap:6px;height:140px;padding-top:8px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px}
+.bar i{display:block;width:100%;max-width:22px;border-radius:8px 8px 4px 4px;background:var(--primary);min-height:4px}
+.bar span{font-size:10px;color:var(--muted)}
+.bar.r1 i,.bar.r2 i{background:var(--bad)}
+.bar.r3 i{opacity:.55}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:10px}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+/* history list */
+.entry{display:flex;gap:14px;align-items:center;width:100%;text-align:left;padding:14px 0;border-bottom:1px solid var(--line)}
+.entry:last-child{border-bottom:none}
+.entry .d{width:48px;text-align:center;flex:none}
+.entry .d b{display:block;font-size:20px;line-height:1.1}
+.entry .d small{font-size:12px;color:var(--muted)}
+.entry .m{flex:1;min-width:0}
+.entry .m .t{font-weight:600}
+.entry .m .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:38px;height:38px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;background:var(--primary-soft);color:var(--primary)}
+.dot.low{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+
+/* insights */
+.insight{padding:12px 0;border-bottom:1px solid var(--line)}
+.insight:last-child{border-bottom:none}
+.insight .top{display:flex;justify-content:space-between;gap:10px;font-weight:600}
+.insight .delta{font-variant-numeric:tabular-nums;white-space:nowrap}
+.insight .delta.neg{color:var(--bad)}
+.insight .delta.pos{color:var(--good)}
+.insight .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.meter{height:8px;background:var(--line);border-radius:6px;margin-top:8px;position:relative;overflow:hidden}
+.meter i{position:absolute;top:0;bottom:0;border-radius:6px}
+.tip{background:var(--primary-soft);border-radius:16px;padding:14px;font-size:14px}
+
+/* sheet (record form) */
+.backdrop{position:fixed;inset:0;background:rgba(15,16,10,.45);z-index:30;opacity:0;pointer-events:none;transition:opacity .25s}
+.backdrop.show{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:31;
+  max-height:94dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:var(--bg);border-radius:24px 24px 0 0;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  padding-bottom:calc(16px + var(--safe-b));
+}
+.sheet.show{transform:none}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:10px auto 0}
+.sheet-head{position:sticky;top:0;background:var(--bg);z-index:2;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;max-width:520px;margin:0 auto}
+.sheet-head h3{margin:0;font-size:18px}
+.icon-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.icon-btn svg{width:22px;height:22px}
+
+.field{margin-bottom:18px}
+.field:last-child{margin-bottom:0}
+.label{display:block;font-size:14px;font-weight:600;margin-bottom:8px}
+.label .hint{font-weight:400;color:var(--muted);font-size:12px;margin-left:6px}
+input[type=date],input[type=time],input[type=text],textarea{
+  width:100%;min-height:52px;padding:12px 14px;border-radius:14px;
+  border:1px solid var(--line);background:var(--bg);font-size:17px;
+  appearance:none;-webkit-appearance:none;
+}
+input:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:-1px}
+textarea{min-height:84px;resize:vertical;font-size:16px}
+.duration{margin-top:10px;font-size:14px;color:var(--muted)}
+.duration b{color:var(--text);font-size:16px}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  min-height:44px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card);font-size:15px;transition:all .15s;
+}
+.chip.on{background:var(--primary);border-color:var(--primary);color:var(--primary-ink);font-weight:600}
+.seg{display:grid;gap:6px;background:var(--line);padding:4px;border-radius:16px}
+.seg button{min-height:48px;border-radius:12px;font-size:15px;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* rating */
+.rating{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.rating button{min-height:64px;border-radius:16px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:24px}
+.rating button small{font-size:11px;color:var(--muted)}
+.rating button.on{background:var(--primary);border-color:var(--primary)}
+.rating button.on small{color:var(--primary-ink)}
+
+/* stepper */
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{width:52px;height:52px;border-radius:50%;background:var(--card);border:1px solid var(--line);font-size:24px;line-height:1}
+.stepper output{min-width:64px;text-align:center;font-size:22px;font-weight:700}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:56px;border-radius:16px;font-size:17px;font-weight:600}
+.btn.primary{background:var(--primary);color:var(--primary-ink)}
+.btn.ghost{background:var(--card);border:1px solid var(--line)}
+.btn.danger{color:var(--bad);background:transparent}
+.btn+.btn{margin-top:10px}
+.hidden{display:none!important}
+
+.caf-item{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px;background:var(--bg)}
+.caf-item .caf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:13px;color:var(--muted)}
+.caf-item .caf-head .icon-btn{width:40px;height:40px;color:var(--bad)}
+.caf-item .chips{margin-bottom:10px}
+.caf-item .chip{min-height:40px;padding:8px 14px;font-size:14px}
+.caf-item .caf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+.caf-item .caf-row>span{font-size:14px;font-weight:600;flex:none}
+.caf-item .stepper button{width:44px;height:44px;font-size:20px}
+.caf-item .stepper output{min-width:44px;font-size:18px}
+.caf-item .seg{flex:1;max-width:230px;grid-template-columns:repeat(3,1fr)}
+.caf-item .seg button{min-height:40px;font-size:14px}
+.exists{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--primary-soft);font-size:14px}
+.exists button{min-height:40px;padding:0 14px;border-radius:999px;background:var(--primary);color:var(--primary-ink);font-size:14px;font-weight:600;flex:none}
+.ex-item{display:flex;align-items:center;gap:8px;min-height:52px;border-bottom:1px solid var(--line)}
+.ex-item span{flex:1;font-size:16px}
+.ex-item .icon-btn{color:var(--bad)}
+.add-row{display:flex;gap:8px;margin-top:12px}
+.add-row input{flex:1}
+.add-row .btn{width:auto;padding:0 20px;flex:none;min-height:52px}
+.warn{margin-top:12px;padding:12px 14px;border-radius:14px;font-size:13px;background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.btn.danger-fill{background:var(--bad);color:#fff}
+.ask{position:fixed;inset:0;z-index:60;background:rgba(15,16,10,.5);display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}
+.ask.show{opacity:1;pointer-events:auto}
+.ask-box{background:var(--card);border-radius:var(--radius);padding:22px 18px 18px;width:100%;max-width:340px}
+.ask-box p{margin:0 0 18px;font-size:16px;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translate(-50%,20px);background:var(--text);color:var(--bg);padding:12px 20px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:50;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ===== 精緻尺寸：整體縮小、線條變細 ===== */
+body{font-size:15px}
+header{padding:18px 0 4px}
+header h1{font-size:22px;font-weight:600}
+header p{font-size:13px}
+.card{padding:16px;border-radius:16px;margin:10px 0}
+.card h2{font-size:13px;margin-bottom:10px}
+.big{font-size:34px;font-weight:600}
+.stat{padding:10px 12px;border-radius:12px}
+.stat .v{font-size:18px;font-weight:600}
+.stat .l{font-size:12px}
+
+.field{margin-bottom:16px}
+.label{font-size:13px;margin-bottom:6px}
+.label .hint{font-size:11px}
+input[type=date],input[type=time],input[type=text],textarea{
+  min-height:42px;padding:8px 12px;border-radius:10px;font-size:16px;  /* 16px 以下 iPhone 會自動放大畫面 */
+}
+textarea{min-height:72px}
+
+.chips{gap:6px}
+.chip{min-height:32px;padding:5px 12px;font-size:13px}
+.chip.on{font-weight:500}
+.seg{padding:3px;gap:3px;border-radius:10px}
+.seg button{min-height:32px;border-radius:8px;font-size:13px}
+.seg button.on{font-weight:500}
+
+.rating{gap:6px}
+.rating button{min-height:52px;border-radius:12px;font-size:20px}
+.rating button small{font-size:10px}
+
+.stepper{gap:8px}
+.stepper button{width:34px;height:34px;font-size:18px}
+.stepper output{min-width:40px;font-size:17px;font-weight:600}
+
+.btn{min-height:44px;border-radius:12px;font-size:15px;font-weight:500}
+.btn+.btn{margin-top:8px}
+.icon-btn{width:36px;height:36px}
+.icon-btn svg{width:18px;height:18px}
+
+.caf-item{padding:10px 12px;border-radius:12px;margin-bottom:8px}
+.caf-item .caf-head{margin-bottom:6px;font-size:12px}
+.caf-item .caf-head .icon-btn{width:32px;height:32px}
+.caf-item .chips{margin-bottom:6px}
+.caf-item .chip{min-height:30px;padding:4px 11px;font-size:13px}
+.caf-item .caf-row{margin-top:6px}
+.caf-item .caf-row>span{font-size:13px;font-weight:500}
+.caf-item .stepper button{width:30px;height:30px;font-size:16px}
+.caf-item .stepper output{min-width:36px;font-size:15px}
+.caf-item .seg{max-width:200px}
+.caf-item .seg button{min-height:28px;font-size:12px}
+
+.exists{padding:6px 6px 6px 12px;border-radius:10px;font-size:13px}
+.exists button{min-height:30px;padding:0 12px;font-size:13px;font-weight:500}
+.ex-item{min-height:44px}
+.ex-item span{font-size:15px}
+.add-row .btn{min-height:42px;padding:0 16px}
+
+.sheet-head{padding:6px 12px}
+.sheet-head h3{font-size:16px;font-weight:600}
+.sheet{border-radius:20px 20px 0 0}
+
+nav.tabbar .inner{height:58px;grid-template-columns:1fr 1fr 64px 1fr 1fr}
+.tab{font-size:11px}
+.tab svg{width:21px;height:21px}
+.tab.active{font-weight:500}
+.fab{width:50px;height:50px;transform:translateY(-10px);box-shadow:0 4px 12px rgba(40,42,20,.22)}
+.fab svg{width:22px;height:22px}
+.fab:active{transform:translateY(-10px) scale(.94)}
+body{padding-bottom:calc(76px + var(--safe-b))}
+
+.entry{padding:11px 0;gap:12px}
+.entry .d b{font-size:17px}
+.entry .m .t{font-weight:500;font-size:14px}
+.entry .m .s{font-size:12px}
+.dot{width:32px;height:32px;font-size:13px;font-weight:600}
+.insight{padding:10px 0}
+.insight .top{font-weight:500;font-size:14px}
+.insight .sub{font-size:12px}
+.meter{height:6px}
+.tip{padding:12px;font-size:13px;border-radius:12px}
+.ask-box{border-radius:16px}
+.ask-box p{font-size:15px}
+.toast{font-size:13px;padding:9px 16px;bottom:calc(86px + var(--safe-b))}
+.bars{height:120px}
+.bar i{max-width:12px;border-radius:6px 6px 3px 3px}
+.legend{font-size:11px}
+.legend b{width:8px;height:8px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="warn hidden" id="store-warn">目前的環境（例如預覽視窗或無痕模式）無法永久保存資料，關掉頁面紀錄就會消失。請用 Safari／Chrome 直接開啟，或加入主畫面使用。</div>
+
+  <!-- 首頁 -->
+  <section id="view-home" class="view active">
+    <header>
+      <h1 id="greet">早安</h1>
+      <p id="today-label"></p>
+    </header>
+    <div id="home-content"></div>
+  </section>
+
+  <!-- 紀錄列表 -->
+  <section id="view-history" class="view">
+    <header><h1>紀錄</h1><p>點一筆可以修改</p></header>
+    <div class="card" id="history-list"></div>
+  </section>
+
+  <!-- 分析 -->
+  <section id="view-insight" class="view">
+    <header><h1>找原因</h1><p>比較有／沒有某個因素時的睡眠評分</p></header>
+    <div id="insight-content"></div>
+  </section>
+
+  <!-- 設定 -->
+  <section id="view-settings" class="view">
+    <header><h1>設定</h1><p>資料只存在這支手機的瀏覽器裡</p></header>
+    <div class="card">
+      <h2>個人設定</h2>
+      <div class="field">
+        <span class="label">性別<span class="hint">選男性會隱藏經期欄位</span></span>
+        <div class="seg" style="grid-template-columns:repeat(3,1fr)" id="s-gender">
+          <button type="button" data-v="female">女性</button>
+          <button type="button" data-v="male">男性</button>
+          <button type="button" data-v="other">不透露</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">平常的作息<span class="hint">新增紀錄時預設帶入</span></span>
+        <div class="row">
+          <div>
+            <label class="label muted" for="s-bed" style="font-weight:400;font-size:13px">上床時間</label>
+            <input type="time" id="s-bed">
+          </div>
+          <div>
+            <label class="label muted" for="s-wake" style="font-weight:400;font-size:13px">起床時間</label>
+            <input type="time" id="s-wake">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>運動類型</h2>
+      <div id="s-ex-list"></div>
+      <div class="add-row">
+        <input type="text" id="s-ex-new" placeholder="新增類型，例如：瑜珈" maxlength="12">
+        <button type="button" class="btn primary" id="s-ex-add">新增</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">「其他」和「沒有」會固定顯示。刪除類型不會影響已存的紀錄。</p>
+    </div>
+    <div class="card">
+      <h2>咖啡因品項</h2>
+      <div id="s-caf-list"></div>
+      <div class="add-row">
+        <input type="text" id="s-caf-new" placeholder="例如：拿鐵、綠茶、巧克力" maxlength="12">
+        <button type="button" class="btn primary" id="s-caf-add">新增</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">分析頁會比較每個品項。刪除不會影響已存的紀錄。</p>
+    </div>
+    <div class="card">
+      <h2>其他因素</h2>
+      <div id="s-fx-list"></div>
+      <div class="add-row">
+        <input type="text" id="s-fx-new" placeholder="例如：吃宵夜、加班、看恐怖片" maxlength="12">
+        <button type="button" class="btn primary" id="s-fx-add">新增</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">紀錄時可以複選，分析頁會逐一比較每個因素。刪除不會影響已存的紀錄。</p>
+    </div>
+    <div class="card">
+      <h2>資料備份</h2>
+      <button class="btn ghost" id="btn-export">匯出 JSON 備份</button>
+      <button class="btn ghost" id="btn-csv">匯出 CSV（可用 Excel 開）</button>
+      <button class="btn ghost" id="btn-import">匯入 JSON 備份</button>
+      <input type="file" id="file-import" accept="application/json,.json" class="hidden">
+    </div>
+    <div class="card">
+      <h2>測試</h2>
+      <button class="btn ghost" id="btn-demo">產生 30 天範例資料</button>
+      <button class="btn danger" id="btn-clear">清除全部資料</button>
+    </div>
+    <div class="card">
+      <h2>關於</h2>
+      <p class="muted" style="margin:0;font-size:14px">不開麥克風、不追蹤、不連網。所有紀錄都在你的裝置上，靠每天手動記錄，慢慢找出睡不好的共同點。</p>
+    </div>
+  </section>
+</div>
+
+<!-- 底部導航 -->
+<nav class="tabbar">
+  <div class="inner">
+    <button class="tab active" data-view="home" aria-label="首頁">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁
+    </button>
+    <button class="tab" data-view="history" aria-label="紀錄">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2v4M16 2v4M4 10h16M8 14h4M8 17h7"/></svg>紀錄
+    </button>
+    <button class="fab" id="fab" aria-label="新增紀錄">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button class="tab" data-view="insight" aria-label="分析">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 13v-2M11 13V9M14 13v-3"/></svg>分析
+    </button>
+    <button class="tab" data-view="settings" aria-label="設定">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>設定
+    </button>
+  </div>
+</nav>
+
+<!-- 紀錄表單 -->
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="grab"></div>
+  <div class="sheet-head">
+    <button class="icon-btn" id="btn-close" aria-label="關閉"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <h3 id="sheet-title">記錄昨晚</h3>
+    <span style="width:44px"></span>
+  </div>
+  <form class="wrap" id="form" autocomplete="off">
+
+    <div class="card">
+      <div class="field">
+        <label class="label" for="f-date">日期<span class="hint">醒來的那一天，可補記任何一天</span></label>
+        <div class="chips" id="date-quick" style="margin-bottom:8px">
+          <button type="button" class="chip" data-off="0">今天</button>
+          <button type="button" class="chip" data-off="1">昨天</button>
+          <button type="button" class="chip" data-off="2">前天</button>
+        </div>
+        <input type="date" id="f-date" required>
+        <div class="exists hidden" id="date-exists">
+          <span>這天已經有紀錄了</span>
+          <button type="button" id="btn-load-exist">改為修改那筆</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label class="label" for="f-bed">上床時間</label>
+          <input type="time" id="f-bed" value="23:30" required>
+        </div>
+        <div class="field">
+          <label class="label" for="f-wake">起床時間</label>
+          <input type="time" id="f-wake" value="07:30" required>
+        </div>
+      </div>
+      <div class="duration" id="f-duration">躺在床上 <b>8 小時 0 分</b></div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <span class="label">整體睡得如何</span>
+        <div class="rating" id="f-rating">
+          <button type="button" data-v="1">😫<small>很差</small></button>
+          <button type="button" data-v="2">😕<small>差</small></button>
+          <button type="button" data-v="3">😐<small>普通</small></button>
+          <button type="button" data-v="4">🙂<small>不錯</small></button>
+          <button type="button" data-v="5">😴<small>很好</small></button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">體感<span class="hint">可複選</span></span>
+        <div class="chips" data-multi="feel">
+          <button type="button" class="chip" data-v="hardFall">難以入睡</button>
+          <button type="button" class="chip" data-v="light">淺眠</button>
+          <button type="button" class="chip" data-v="wake">半夜醒來</button>
+          <button type="button" class="chip" data-v="early">太早醒</button>
+          <button type="button" class="chip" data-v="dream">多夢</button>
+          <button type="button" class="chip" data-v="groggy">起床昏沉</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>前一天白天</h2>
+      <div class="field">
+        <span class="label">咖啡因<span class="hint">每喝一種記一筆，品項可到「設定」自訂</span></span>
+        <div id="caf-list"></div>
+        <button type="button" class="btn ghost" id="caf-add">＋ 新增一筆</button>
+        <div class="duration" id="caf-total"></div>
+      </div>
+      <div class="field">
+        <span class="label">運動</span>
+        <div class="seg" style="grid-template-columns:repeat(3,1fr)" data-single="exercise" id="ex-seg"></div>
+      </div>
+      <div class="field hidden" id="ex-other-field">
+        <label class="label" for="f-exother">其他運動</label>
+        <input type="text" id="f-exother" placeholder="例如：瑜珈、散步、游泳" maxlength="30">
+      </div>
+      <div class="field" id="ex-time-field">
+        <span class="label">運動時段</span>
+        <div class="seg" style="grid-template-columns:repeat(3,1fr)" data-single="exTime">
+          <button type="button" data-v="am" class="on">上午</button>
+          <button type="button" data-v="pm">下午</button>
+          <button type="button" data-v="night">晚上</button>
+        </div>
+      </div>
+      <div class="field" id="period-field">
+        <span class="label">經期</span>
+        <div class="seg" style="grid-template-columns:repeat(3,1fr)" data-single="period">
+          <button type="button" data-v="na" class="on">不適用</button>
+          <button type="button" data-v="no">非經期</button>
+          <button type="button" data-v="yes">經期中</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">其他因素<span class="hint">選填，可到「設定」自訂</span></span>
+        <div class="chips" data-multi="extra" id="extra-chips"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label class="label" for="f-note">備註</label>
+        <textarea id="f-note" placeholder="例如：隔壁裝潢、換新枕頭…"></textarea>
+      </div>
+    </div>
+
+    <button type="button" class="btn primary" id="btn-save">儲存</button>
+    <button type="button" class="btn danger hidden" id="btn-delete">刪除這筆</button>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="ask" id="ask" role="alertdialog" aria-modal="true" aria-labelledby="ask-msg">
+  <div class="ask-box">
+    <p id="ask-msg"></p>
+    <button type="button" class="btn primary" id="ask-ok">確定</button>
+    <button type="button" class="btn ghost" id="ask-cancel">取消</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- 常數 ---------- */
+  const KEY = 'sleepnote.v1';
+  const FEEL = {hardFall:'難以入睡',light:'淺眠',wake:'半夜醒來',early:'太早醒',dream:'多夢',groggy:'起床昏沉'};
+  const SKEY = 'sleepnote.settings.v1';
+  const DEFAULT_EX = [
+    {id:'strongWeight', label:'重訓（強）'},
+    {id:'lightWeight',  label:'重訓（弱）'},
+    {id:'cardio',       label:'有氧'}
+  ];
+  const DEFAULT_FX = [
+    {id:'nap',      label:'有午睡'},
+    {id:'alcohol',  label:'喝酒'},
+    {id:'screen',   label:'睡前滑手機'},
+    {id:'stress',   label:'壓力大'},
+    {id:'lateMeal', label:'太晚吃東西'},
+    {id:'meds',     label:'有吃助眠藥'}
+  ];
+  const DEFAULT_CAF = [
+    {id:'coffee',  label:'咖啡'},
+    {id:'tea',     label:'茶'},
+    {id:'milkTea', label:'奶茶'},
+    {id:'cola',    label:'可樂'},
+    {id:'energy',  label:'能量飲'}
+  ];
+  const CAF_TIME = {am:'早上', pm:'下午', night:'晚上'};
+  const DEFAULT_SETTINGS = {gender:'other', bed:'23:30', wake:'07:30', exTypes:DEFAULT_EX, fxTypes:DEFAULT_FX, cafTypes:DEFAULT_CAF};
+  // 舊版只有「杯數＋最後時間」→ 轉成一筆「咖啡因」
+  const toCafItems = r => {
+    if (Array.isArray(r.cafItems)) return r.cafItems;
+    if (!r.caffeine) return [];
+    const m = r.cafTime ? toMin(r.cafTime) : 600;
+    return [{type:'legacy', label:'咖啡因', cups:r.caffeine, time: m < 720 ? 'am' : m < 1080 ? 'pm' : 'night'}];
+  };
+  const cafTotal = r => toCafItems(r).reduce((s, c) => s + (+c.cups || 0), 0);
+  const fmtCups = n => (Math.round(n * 10) / 10).toString();
+  // 其他因素名稱：目前設定 → 紀錄裡存下的名稱 → 內建名稱
+  const fxLabel = (id, r) => {
+    const t = settings.fxTypes.find(t => t.id === id) || DEFAULT_FX.find(t => t.id === id);
+    return t ? t.label : (r?.fxNames?.[id] || '其他');
+  };
+  // 運動名稱：先看目前設定，再看紀錄當時存下的名稱，最後才用內建名稱
+  const exLabel = r => {
+    if (!r.exercise || r.exercise === 'none') return '沒運動';
+    if (r.exercise === 'other') return r.exOther || '其他運動';
+    const t = settings.exTypes.find(t => t.id === r.exercise) || DEFAULT_EX.find(t => t.id === r.exercise);
+    return t ? t.label : (r.exName || '運動');
+  };
+  const EXT = {am:'上午',pm:'下午',night:'晚上'};
+  const RATE_EMOJI = ['','😫','😕','😐','🙂','😴'];
+  const WD = ['日','一','二','三','四','五','六'];
+
+  /* ---------- 工具 ---------- */
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const pad = n => String(n).padStart(2,'0');
+  const isoDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const todayISO = () => isoDate(new Date());
+  const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+  const durMin = (bed,wake) => { let d = toMin(wake) - toMin(bed); if (d <= 0) d += 1440; return d; };
+  const fmtDur = m => `${Math.floor(m/60)} 小時 ${m%60} 分`;
+  const fmtH = m => (m/60).toFixed(1);
+  // 上床時間換算成「以傍晚 18:00 為起點」的分鐘數，跨午夜才能正確平均
+  const bedScore = t => { const m = toMin(t); return m < 18*60 ? m + 1440 : m; };
+  const scoreToTime = s => { s = Math.round(s) % 1440; return `${pad(Math.floor(s/60))}:${pad(s%60)}`; };
+  const avg = a => a.reduce((x,y)=>x+y,0) / a.length;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---------- 儲存 ---------- */
+  // 測試 localStorage 能不能用（預覽視窗、部分無痕模式會被封鎖）
+  const canStore = (() => {
+    try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return true; }
+    catch { return false; }
+  })();
+  let data = load();
+  function load(){
+    if (!canStore) return {};
+    let d;
+    try { d = JSON.parse(localStorage.getItem(KEY)) || {}; }
+    catch { return {}; }
+    // 舊版運動選項（輕度／中等／激烈）轉成「其他」，保留原本文字
+    const OLD = {light:'輕度運動',mid:'中等運動',hard:'激烈運動'};
+    Object.values(d).forEach(r => {
+      if (OLD[r.exercise]){ r.exOther = OLD[r.exercise]; r.exercise = 'other'; }
+      r.cafItems = toCafItems(r);   // 舊版咖啡因格式轉換
+    });
+    return d;
+  }
+  function save(){
+    if (!canStore) return;   // 資料先留在記憶體，關掉頁面就會消失（頂端有提示）
+    try { localStorage.setItem(KEY, JSON.stringify(data)); }
+    catch { toast('儲存失敗，可能是瀏覽器空間不足'); }
+  }
+
+  // 自訂確認框（取代 confirm()，沙盒環境裡 confirm 會被封鎖）
+  function ask(msg, okText = '確定', danger = false){
+    return new Promise(resolve => {
+      const box = $('#ask');
+      $('#ask-msg').textContent = msg;
+      const ok = $('#ask-ok');
+      ok.textContent = okText;
+      ok.className = 'btn ' + (danger ? 'danger-fill' : 'primary');
+      box.classList.add('show');
+      const done = v => { box.classList.remove('show'); ok.onclick = $('#ask-cancel').onclick = null; resolve(v); };
+      ok.onclick = () => done(true);
+      $('#ask-cancel').onclick = () => done(false);
+    });
+  }
+  if (!canStore) $('#store-warn').classList.remove('hidden');
+
+  /* ---------- 個人設定 ---------- */
+  let settings = loadSettings();
+  function loadSettings(){
+    let s = {};
+    if (canStore){ try { s = JSON.parse(localStorage.getItem(SKEY)) || {}; } catch {} }
+    s = {...DEFAULT_SETTINGS, ...s};
+    if (!Array.isArray(s.exTypes)) s.exTypes = DEFAULT_EX;
+    if (!Array.isArray(s.fxTypes)) s.fxTypes = DEFAULT_FX;
+    if (!Array.isArray(s.cafTypes)) s.cafTypes = DEFAULT_CAF;
+    return s;
+  }
+  function saveSettings(){
+    if (!canStore) return;
+    try { localStorage.setItem(SKEY, JSON.stringify(settings)); } catch {}
+  }
+
+  function renderSettings(){
+    $$('#s-gender button').forEach(b => b.classList.toggle('on', b.dataset.v === settings.gender));
+    $('#s-bed').value = settings.bed;
+    $('#s-wake').value = settings.wake;
+    LISTS.forEach(renderList);
+  }
+
+  /* 可自訂清單（運動類型、其他因素）共用的新增／刪除邏輯 */
+  const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+  const LISTS = [
+    {
+      key:'exTypes', el:'ex', max:10, reserved:['其他','沒有'],
+      empty:'尚未設定，紀錄時只會有「其他」和「沒有」',
+      // 刪除前把名稱寫進用到它的紀錄
+      keepName:(r, t) => { if (r.exercise === t.id) r.exName = t.label; }
+    },
+    {
+      key:'cafTypes', el:'caf', max:15, reserved:[],
+      empty:'尚未設定，紀錄時只能選「其他」',
+      keepName:() => {}   // 每筆咖啡因紀錄本身就存了品項名稱
+    },
+    {
+      key:'fxTypes', el:'fx', max:20, reserved:[],
+      empty:'尚未設定，紀錄表單不會顯示其他因素',
+      keepName:(r, t) => { if ((r.extra||[]).includes(t.id)) r.fxNames = {...(r.fxNames||{}), [t.id]:t.label}; }
+    }
+  ];
+  function renderList(L){
+    const items = settings[L.key];
+    $(`#s-${L.el}-list`).innerHTML = items.length
+      ? items.map(t => `<div class="ex-item"><span>${esc(t.label)}</span>
+          <button type="button" class="icon-btn" data-del="${t.id}" aria-label="刪除 ${esc(t.label)}">${TRASH}</button></div>`).join('')
+      : `<p class="muted" style="margin:0">${L.empty}</p>`;
+  }
+  LISTS.forEach(L => {
+    const inp = $(`#s-${L.el}-new`);
+    $(`#s-${L.el}-add`).addEventListener('click', () => {
+      const label = inp.value.trim();
+      if (!label) return toast('請輸入名稱');
+      if (L.reserved.includes(label) || settings[L.key].some(t => t.label === label)) return toast('已經有這個項目了');
+      if (settings[L.key].length >= L.max) return toast(`最多 ${L.max} 個`);
+      settings[L.key] = [...settings[L.key], {id:'c' + Date.now().toString(36), label}];
+      inp.value = ''; saveSettings(); renderList(L); toast('已新增');
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $(`#s-${L.el}-add`).click(); } });
+    $(`#s-${L.el}-list`).addEventListener('click', async e => {
+      const b = e.target.closest('[data-del]'); if (!b) return;
+      const t = settings[L.key].find(t => t.id === b.dataset.del);
+      if (!t || !(await ask(`刪除「${t.label}」？已存的紀錄會保留這個名稱。`, '刪除', true))) return;
+      Object.values(data).forEach(r => L.keepName(r, t));
+      save();
+      settings[L.key] = settings[L.key].filter(x => x.id !== t.id);
+      saveSettings(); renderList(L); toast('已刪除');
+    });
+  });
+
+  $('#s-gender').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    settings.gender = b.dataset.v; saveSettings(); renderSettings(); toast('已更新');
+  });
+  ['bed','wake'].forEach(k => $('#s-'+k).addEventListener('change', e => {
+    if (!e.target.value) return;
+    settings[k] = e.target.value; saveSettings(); toast('已更新');
+  }));
+
+  // 紀錄表單裡的運動按鈕依設定產生
+  function buildExerciseButtons(current){
+    const items = [...settings.exTypes];
+    // 修改舊紀錄時，若該類型已被刪除，暫時補回按鈕讓它能被選取
+    if (current && !['none','other'].includes(current) && !items.some(t => t.id === current)){
+      items.push({id:current, label: exLabel({exercise:current, exName: data[editingDate]?.exName})});
+    }
+    const n = items.length + 1;              // 類型 + 「其他」
+    const span = 3 - (n % 3);                // 讓「沒有」補滿最後一排
+    $('#ex-seg').innerHTML =
+      items.map(t => `<button type="button" data-v="${t.id}">${esc(t.label)}</button>`).join('') +
+      `<button type="button" data-v="other">其他</button>` +
+      `<button type="button" data-v="none" style="grid-column:span ${span}">沒有</button>`;
+  }
+  // 紀錄表單裡的「其他因素」依設定產生
+  function buildFactorChips(r){
+    const items = [...settings.fxTypes];
+    // 修改舊紀錄時，已被刪除的因素也補回來，才不會存檔時被清掉
+    (r?.extra || []).forEach(id => { if (!items.some(t => t.id === id)) items.push({id, label:fxLabel(id, r)}); });
+    $('#extra-chips').innerHTML = items.length
+      ? items.map(t => `<button type="button" class="chip" data-v="${t.id}">${esc(t.label)}</button>`).join('')
+      : '<span class="muted" style="font-size:14px">尚未設定，可到「設定」新增</span>';
+  }
+  const sorted = () => Object.values(data).sort((a,b) => b.date.localeCompare(a.date));
+
+  /* ---------- 導航 ---------- */
+  function go(view){
+    $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-'+view));
+    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+    render(view);
+    window.scrollTo({top:0});
+  }
+  $$('.tab').forEach(t => t.addEventListener('click', () => go(t.dataset.view)));
+  function currentView(){ return ($('.view.active').id || '').replace('view-',''); }
+
+  /* ---------- 首頁 ---------- */
+  function renderHome(){
+    const h = new Date().getHours();
+    $('#greet').textContent = h < 5 ? '還醒著嗎' : h < 11 ? '早安' : h < 18 ? '午安' : '晚安';
+    const d = new Date();
+    $('#today-label').textContent = `${d.getMonth()+1} 月 ${d.getDate()} 日 星期${WD[d.getDay()]}`;
+
+    const list = sorted();
+    const el = $('#home-content');
+    const today = data[todayISO()];
+
+    let html = '';
+    if (!today){
+      html += `<div class="card">
+        <h2>今天還沒記錄</h2>
+        <p style="margin:0 0 14px">花 30 秒，記下昨晚睡得怎麼樣。</p>
+        <button class="btn primary" data-act="new">記錄昨晚</button>
+      </div>`;
+    } else {
+      const m = durMin(today.bed, today.wake);
+      const tags = [...(today.feel||[]).map(k=>FEEL[k])];
+      html += `<div class="card">
+        <h2>昨晚</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="big">${fmtH(m)}<small>小時</small></div>
+          <div style="font-size:44px">${RATE_EMOJI[today.rating]||''}</div>
+        </div>
+        <p class="muted" style="margin:6px 0 0">${today.bed} 上床 → ${today.wake} 起床${tags.length?'<br>'+tags.join('、'):''}</p>
+        <button class="btn ghost" style="margin-top:14px" data-act="edit" data-date="${today.date}">修改</button>
+      </div>`;
+    }
+
+    if (!list.length){
+      html += `<div class="card empty"><span class="moon">☾</span>還沒有任何紀錄<br>點下方 ＋ 開始</div>`;
+      el.innerHTML = html; return;
+    }
+
+    // 近 7 天統計
+    const recent = list.slice(0,7);
+    const durs = recent.map(r => durMin(r.bed,r.wake));
+    const rates = recent.filter(r=>r.rating).map(r=>r.rating);
+    html += `<div class="card"><h2>最近 ${recent.length} 筆</h2>
+      <div class="row">
+        <div class="stat"><div class="v">${fmtH(avg(durs))}h</div><div class="l">平均躺床</div></div>
+        <div class="stat"><div class="v">${rates.length?avg(rates).toFixed(1):'–'}</div><div class="l">平均評分</div></div>
+        <div class="stat"><div class="v">${scoreToTime(avg(recent.map(r=>bedScore(r.bed))))}</div><div class="l">平均上床</div></div>
+      </div></div>`;
+
+    // 近 14 天長條圖
+    const days = [];
+    for (let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(isoDate(d)); }
+    const maxM = 11*60;
+    html += `<div class="card"><h2>近兩週睡眠時數</h2><div class="bars">` +
+      days.map(ds => {
+        const r = data[ds];
+        const dd = new Date(ds+'T00:00');
+        if (!r) return `<div class="bar"><i style="height:4px;opacity:.25"></i><span>${dd.getDate()}</span></div>`;
+        const m = durMin(r.bed,r.wake);
+        return `<div class="bar r${r.rating||3}" title="${fmtH(m)} 小時"><i style="height:${Math.min(100,m/maxM*100)}%"></i><span>${dd.getDate()}</span></div>`;
+      }).join('') +
+      `</div><div class="legend"><span><b style="background:var(--primary)"></b>睡得好</span><span><b style="background:var(--primary);opacity:.55"></b>普通</span><span><b style="background:var(--bad)"></b>睡不好</span></div></div>`;
+
+    el.innerHTML = html;
+  }
+
+  /* ---------- 紀錄列表 ---------- */
+  function renderHistory(){
+    const list = sorted();
+    const el = $('#history-list');
+    if (!list.length){ el.innerHTML = `<div class="empty"><span class="moon">☾</span>還沒有紀錄</div>`; return; }
+    el.innerHTML = list.map(r => {
+      const d = new Date(r.date+'T00:00');
+      const m = durMin(r.bed,r.wake);
+      const bits = [];
+      (r.feel||[]).forEach(k=>bits.push(FEEL[k]));
+      toCafItems(r).forEach(c => bits.push(`${c.label}×${fmtCups(c.cups)}（${CAF_TIME[c.time]}）`));
+      if (r.exercise && r.exercise!=='none') bits.push(exLabel(r));
+      if (r.period==='yes') bits.push('經期');
+      (r.extra||[]).forEach(k=>bits.push(fxLabel(k, r)));
+      return `<button class="entry" data-act="edit" data-date="${r.date}">
+        <div class="d"><b>${d.getDate()}</b><small>${d.getMonth()+1}月 週${WD[d.getDay()]}</small></div>
+        <div class="m"><div class="t">${fmtH(m)} 小時 · ${r.bed}–${r.wake}</div><div class="s">${esc(bits.join('・') || '無特別狀況')}</div></div>
+        <div class="dot ${r.rating<=2?'low':''}">${r.rating||'–'}</div>
+      </button>`;
+    }).join('');
+  }
+
+  /* ---------- 分析 ---------- */
+  function factorList(){
+    // 每個因素：名稱 + 判斷函式
+    const f = [
+      ['喝了咖啡因', r => cafTotal(r) > 0],
+      ['咖啡因 ≥ 2 杯', r => cafTotal(r) >= 2],
+      ['下午喝咖啡因', r => toCafItems(r).some(c => c.time === 'pm')],
+      ['晚上喝咖啡因', r => toCafItems(r).some(c => c.time === 'night')],
+      ['下午或晚上喝咖啡因', r => toCafItems(r).some(c => c.time !== 'am')],
+      ['有運動', r => r.exercise && r.exercise !== 'none'],
+      ['晚上運動', r => r.exercise && r.exercise !== 'none' && r.exTime === 'night'],
+      ['經期中', r => r.period === 'yes', r => r.period === 'yes' || r.period === 'no'],
+      ['凌晨 0:30 後才上床', r => bedScore(r.bed) > 24*60+30],
+    ];
+    // 每種運動類型各自比較（包含已刪除但紀錄裡還有的類型）
+    const exIds = new Map(settings.exTypes.map(t => [t.id, t.label]));
+    Object.values(data).forEach(r => {
+      if (r.exercise && !['none','other'].includes(r.exercise) && !exIds.has(r.exercise)) exIds.set(r.exercise, exLabel(r));
+    });
+    exIds.forEach((label, id) => f.push([label, r => r.exercise === id]));
+    // 每種咖啡因品項（「其他」依填寫的名稱分開算）
+    const cafKey = c => c.type === 'other' ? 'o:' + c.label : c.type;
+    const cafIds = new Map(settings.cafTypes.map(t => [t.id, t.label]));
+    Object.values(data).forEach(r => toCafItems(r).forEach(c => { if (!cafIds.has(cafKey(c))) cafIds.set(cafKey(c), c.label); }));
+    cafIds.forEach((label, key) => f.push(['喝' + label, r => toCafItems(r).some(c => cafKey(c) === key)]));
+    if (settings.gender === 'male') f.splice(f.findIndex(x => x[0] === '經期中'), 1);
+    // 每個其他因素（包含已刪除但紀錄裡還有的）
+    const fxIds = new Map(settings.fxTypes.map(t => [t.id, t.label]));
+    Object.values(data).forEach(r => (r.extra||[]).forEach(id => { if (!fxIds.has(id)) fxIds.set(id, fxLabel(id, r)); }));
+    fxIds.forEach((label, id) => f.push([label, r => (r.extra||[]).includes(id)]));
+    return f;
+  }
+
+  function renderInsight(){
+    const list = sorted().filter(r => r.rating);
+    const el = $('#insight-content');
+    const MIN = 3;
+    if (list.length < 7){
+      el.innerHTML = `<div class="card empty"><span class="moon">☾</span>
+        目前有 ${list.length} 筆有評分的紀錄<br>累積滿 <b>7 筆</b> 後開始分析<br>
+        <small>（想先看看效果，可以到「設定」產生範例資料）</small></div>`;
+      return;
+    }
+    const base = avg(list.map(r=>r.rating));
+    const results = [];
+    for (const [name, test, applicable] of factorList()){
+      const pool = applicable ? list.filter(applicable) : list;
+      const yes = pool.filter(test), no = pool.filter(r => !test(r));
+      if (yes.length < MIN || no.length < MIN) continue;
+      const a = avg(yes.map(r=>r.rating)), b = avg(no.map(r=>r.rating));
+      // 該因素出現時，各種「體感問題」的比例
+      const feelRate = {};
+      Object.keys(FEEL).forEach(k => {
+        const py = yes.filter(r=>(r.feel||[]).includes(k)).length / yes.length;
+        const pn = no.filter(r=>(r.feel||[]).includes(k)).length / no.length;
+        feelRate[k] = py - pn;
+      });
+      const topFeel = Object.entries(feelRate).sort((x,y)=>y[1]-x[1])[0];
+      results.push({name, a, b, diff:a-b, ny:yes.length, nn:no.length, topFeel});
+    }
+    results.sort((x,y) => x.diff - y.diff);
+
+    const bad = results.filter(r => r.diff <= -0.3);
+    const good = results.filter(r => r.diff >= 0.3);
+
+    // 睡得好 vs 不好的夜晚比較
+    const poor = list.filter(r=>r.rating<=2), fine = list.filter(r=>r.rating>=4);
+    let compare = '';
+    if (poor.length >= 2 && fine.length >= 2){
+      const pb = scoreToTime(avg(poor.map(r=>bedScore(r.bed))));
+      const fb = scoreToTime(avg(fine.map(r=>bedScore(r.bed))));
+      const pd = fmtH(avg(poor.map(r=>durMin(r.bed,r.wake))));
+      const fd = fmtH(avg(fine.map(r=>durMin(r.bed,r.wake))));
+      const pc = avg(poor.map(cafTotal)).toFixed(1);
+      const fc = avg(fine.map(cafTotal)).toFixed(1);
+      compare = `<div class="card"><h2>睡不好 vs 睡得好的夜晚</h2>
+        <div class="row" style="font-size:14px">
+          <div class="stat"><div class="l">睡不好（${poor.length} 晚）</div>
+            <div>平均上床 <b>${pb}</b></div><div>躺床 <b>${pd}h</b></div><div>咖啡因 <b>${pc}</b> 杯</div></div>
+          <div class="stat"><div class="l">睡得好（${fine.length} 晚）</div>
+            <div>平均上床 <b>${fb}</b></div><div>躺床 <b>${fd}h</b></div><div>咖啡因 <b>${fc}</b> 杯</div></div>
+        </div></div>`;
+    }
+
+    const row = r => {
+      const neg = r.diff < 0;
+      const w = Math.min(50, Math.abs(r.diff)/2*50);
+      const feelHint = r.topFeel && r.topFeel[1] >= 0.2
+        ? `，「${FEEL[r.topFeel[0]]}」多了 ${Math.round(r.topFeel[1]*100)}%` : '';
+      return `<div class="insight">
+        <div class="top"><span>${r.name}</span><span class="delta ${neg?'neg':'pos'}">${r.diff>0?'+':''}${r.diff.toFixed(1)} 分</span></div>
+        <div class="sub">有：${r.a.toFixed(1)} 分（${r.ny} 晚）・沒有：${r.b.toFixed(1)} 分（${r.nn} 晚）${neg?feelHint:''}</div>
+        <div class="meter"><i style="left:${neg?50-w:50}%;width:${w}%;background:${neg?'var(--bad)':'var(--good)'}"></i><i style="left:50%;width:1px;background:var(--muted)"></i></div>
+      </div>`;
+    };
+
+    let tip = '';
+    if (bad.length){
+      tip = `<div class="tip">目前最可疑的是 <b>${bad[0].name}</b>：出現這個因素的夜晚，平均評分低了 ${Math.abs(bad[0].diff).toFixed(1)} 分。可以試著連續一兩週避開它，看看評分有沒有改善。</div>`;
+    } else {
+      tip = `<div class="tip">目前還看不出明顯的影響因素。持續記錄，並多勾選「其他因素」，資料越多越準。</div>`;
+    }
+
+    el.innerHTML = `
+      <div class="card"><h2>總覽</h2>
+        <div class="row">
+          <div class="stat"><div class="v">${list.length}</div><div class="l">筆紀錄</div></div>
+          <div class="stat"><div class="v">${base.toFixed(1)}</div><div class="l">平均評分</div></div>
+          <div class="stat"><div class="v">${fmtH(avg(list.map(r=>durMin(r.bed,r.wake))))}h</div><div class="l">平均躺床</div></div>
+        </div>
+        <div style="margin-top:14px">${tip}</div>
+      </div>
+      <div class="card"><h2>可能讓你睡不好</h2>${bad.length ? bad.map(row).join('') : '<p class="muted" style="margin:0">暫無</p>'}</div>
+      <div class="card"><h2>可能幫你睡得好</h2>${good.length ? good.slice().reverse().map(row).join('') : '<p class="muted" style="margin:0">暫無</p>'}</div>
+      ${compare}
+      <p class="muted" style="font-size:12px;padding:0 4px">＊ 每個因素「有」和「沒有」都至少要 ${MIN} 晚才會列出。這是相關性而非因果，僅供參考；長期失眠請諮詢醫師。</p>`;
+  }
+
+  function render(view = currentView()){
+    if (view === 'home') renderHome();
+    else if (view === 'history') renderHistory();
+    else if (view === 'insight') renderInsight();
+    else if (view === 'settings') renderSettings();
+  }
+
+  /* ---------- 表單 ---------- */
+  const form = $('#form');
+  let state = {};
+  let editingDate = null;
+
+  function setSingle(group, v){
+    $$(`[data-single="${group}"] button`).forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    state[group] = v;
+    if (group === 'exercise'){
+      $('#ex-time-field').classList.toggle('hidden', v === 'none');
+      $('#ex-other-field').classList.toggle('hidden', v !== 'other');
+    }
+  }
+  function setMulti(group, arr){
+    state[group] = [...arr];
+    $$(`[data-multi="${group}"] .chip`).forEach(b => b.classList.toggle('on', arr.includes(b.dataset.v)));
+  }
+  function setRating(v){
+    state.rating = v;
+    $$('#f-rating button').forEach(b => b.classList.toggle('on', +b.dataset.v === v));
+  }
+  /* 咖啡因：多筆，每筆 = 品項 + 杯數 + 時段 */
+  function renderCaf(){
+    const items = state.caf;
+    // 可選品項：設定裡的 + 這筆紀錄已用過但被刪掉的
+    const types = [...settings.cafTypes];
+    items.forEach(c => { if (c.type !== 'other' && !types.some(t => t.id === c.type)) types.push({id:c.type, label:c.label}); });
+    $('#caf-list').innerHTML = items.map((c, i) => `
+      <div class="caf-item" data-i="${i}">
+        <div class="caf-head"><span>第 ${i+1} 筆</span>
+          <button type="button" class="icon-btn" data-caf-del aria-label="刪除這筆">${TRASH}</button></div>
+        <div class="chips">
+          ${types.map(t => `<button type="button" class="chip ${c.type===t.id?'on':''}" data-caf-type="${t.id}">${esc(t.label)}</button>`).join('')}
+          <button type="button" class="chip ${c.type==='other'?'on':''}" data-caf-type="other">其他</button>
+        </div>
+        ${c.type === 'other' ? `<input type="text" data-caf-other placeholder="品項名稱" maxlength="12" value="${esc(c.label === '其他' ? '' : c.label)}" style="margin-bottom:4px">` : ''}
+        <div class="caf-row"><span>杯數</span>
+          <div class="stepper">
+            <button type="button" data-caf-cups="-0.5" aria-label="減少">−</button>
+            <output>${fmtCups(c.cups)}</output>
+            <button type="button" data-caf-cups="0.5" aria-label="增加">＋</button>
+          </div>
+        </div>
+        <div class="caf-row"><span>時段</span>
+          <div class="seg">
+            ${Object.entries(CAF_TIME).map(([k,l]) => `<button type="button" class="${c.time===k?'on':''}" data-caf-time="${k}">${l}</button>`).join('')}
+          </div>
+        </div>
+      </div>`).join('');
+    const total = items.reduce((s, c) => s + c.cups, 0);
+    $('#caf-total').innerHTML = items.length ? `共 <b>${fmtCups(total)}</b> 杯` : '沒喝就不用新增';
+  }
+  $('#caf-add').addEventListener('click', () => {
+    if (state.caf.length >= 10) return toast('最多 10 筆');
+    const first = settings.cafTypes[0];
+    // 新增時沿用上一筆的時段；第一筆則預設早上
+    const prevTime = state.caf.length ? state.caf[state.caf.length-1].time : 'am';
+    state.caf.push({type: first ? first.id : 'other', label: first ? first.label : '其他', cups:1, time: prevTime});
+    renderCaf();
+  });
+  $('#caf-list').addEventListener('click', e => {
+    const box = e.target.closest('.caf-item'); if (!box) return;
+    const c = state.caf[+box.dataset.i];
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-caf-del')){ state.caf.splice(+box.dataset.i, 1); }
+    else if (b.dataset.cafType){
+      c.type = b.dataset.cafType;
+      c.label = c.type === 'other' ? '其他' : b.textContent;
+    }
+    else if (b.dataset.cafCups){ c.cups = Math.max(0.5, Math.min(10, c.cups + +b.dataset.cafCups)); }
+    else if (b.dataset.cafTime){ c.time = b.dataset.cafTime; }
+    const i = box.dataset.i;
+    renderCaf();
+    // 選「其他」後直接把游標放進名稱欄
+    if (c.type === 'other' && b.dataset.cafType) $(`.caf-item[data-i="${i}"] [data-caf-other]`)?.focus();
+  });
+  $('#caf-list').addEventListener('input', e => {
+    if (!e.target.matches('[data-caf-other]')) return;
+    const c = state.caf[+e.target.closest('.caf-item').dataset.i];
+    c.label = e.target.value.trim() || '其他';
+  });
+  function updateDuration(){
+    const b = $('#f-bed').value, w = $('#f-wake').value;
+    $('#f-duration').innerHTML = b && w ? `躺在床上 <b>${fmtDur(durMin(b,w))}</b>` : '';
+  }
+
+  $$('[data-single]').forEach(g => g.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (b) setSingle(g.dataset.single, b.dataset.v);
+  }));
+  $$('[data-multi]').forEach(g => g.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const k = g.dataset.multi, v = b.dataset.v;
+    const arr = state[k] || [];
+    setMulti(k, arr.includes(v) ? arr.filter(x=>x!==v) : [...arr, v]);
+  }));
+  $('#f-rating').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setRating(+b.dataset.v); });
+  $('#f-bed').addEventListener('input', updateDuration);
+  $('#f-wake').addEventListener('input', updateDuration);
+
+  // 從今天往回找第一個還沒記錄的日期（最多 60 天）
+  function firstEmptyDate(){
+    for (let i = 0; i < 60; i++){
+      const d = new Date(); d.setDate(d.getDate() - i);
+      if (!data[isoDate(d)]) return isoDate(d);
+    }
+    return todayISO();
+  }
+  const offsetISO = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoDate(d); };
+
+  // 依目前選的日期：標示快捷按鈕、提示這天是否已有紀錄
+  function updateDateUI(){
+    const v = $('#f-date').value;
+    $$('#date-quick .chip').forEach(c => c.classList.toggle('on', offsetISO(+c.dataset.off) === v));
+    $('#date-exists').classList.toggle('hidden', !(v && data[v] && v !== editingDate));
+  }
+  $('#date-quick').addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    $('#f-date').value = offsetISO(+c.dataset.off); updateDateUI();
+  });
+  $('#f-date').addEventListener('input', updateDateUI);
+  $('#btn-load-exist').addEventListener('click', () => openSheet($('#f-date').value));
+
+  // date：要修改的紀錄日期；newDate：新增時預設的日期
+  function openSheet(date, newDate){
+    const r = date ? data[date] : null;
+    const last = sorted()[0];
+    editingDate = r ? date : null;
+    state = {};
+    $('#sheet-title').textContent = r ? '修改紀錄' : '新增睡眠紀錄';
+    $('#f-date').value = r ? r.date : (newDate || firstEmptyDate());
+    $('#f-date').max = todayISO();
+    updateDateUI();
+    $('#f-bed').value = r?.bed || settings.bed;
+    $('#f-wake').value = r?.wake || settings.wake;
+    buildExerciseButtons(r?.exercise);
+    $('#period-field').classList.toggle('hidden', settings.gender === 'male');
+    $('#f-note').value = r?.note || '';
+    $('#f-exother').value = r?.exOther || '';
+    setRating(r?.rating || 0);
+    setMulti('feel', r?.feel || []);
+    buildFactorChips(r);
+    setMulti('extra', r?.extra || []);
+    state.caf = r ? toCafItems(r).map(c => ({...c})) : [];
+    renderCaf();
+    setSingle('exercise', r?.exercise || 'none');
+    setSingle('exTime', r?.exTime || 'am');
+    // 經期沿用上一筆（經期通常連續數天）
+    setSingle('period', settings.gender === 'male' ? 'na' : (r?.period || last?.period || (settings.gender === 'female' ? 'no' : 'na')));
+    $('#btn-delete').classList.toggle('hidden', !r);
+    updateDuration();
+    $('#sheet').scrollTop = 0;
+    $('#backdrop').classList.add('show');
+    $('#sheet').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSheet(){
+    $('#backdrop').classList.remove('show');
+    $('#sheet').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  // ＋ 一律是新增；預設帶入最近一個還沒記錄的日期
+  $('#fab').addEventListener('click', () => openSheet(null));
+  $('#btn-close').addEventListener('click', closeSheet);
+  $('#backdrop').addEventListener('click', closeSheet);
+
+  // 不用 form submit：在預覽視窗等沙盒環境中，表單送出會被瀏覽器擋下
+  form.addEventListener('submit', e => e.preventDefault());
+  $('#btn-save').addEventListener('click', async () => {
+    if (!state.rating){ toast('請選擇整體睡得如何'); $('#f-rating').scrollIntoView({behavior:'smooth',block:'center'}); return; }
+    const date = $('#f-date').value;
+    if (!date){ toast('請選擇日期'); return; }
+    if (!$('#f-bed').value || !$('#f-wake').value){ toast('請填上床和起床時間'); return; }
+    if (editingDate !== date && data[date] && !(await ask(`${date} 已經有紀錄，要覆蓋嗎？`, '覆蓋'))) return;
+    if (editingDate && editingDate !== date) delete data[editingDate];
+    data[date] = {
+      date,
+      bed: $('#f-bed').value,
+      wake: $('#f-wake').value,
+      rating: state.rating,
+      feel: state.feel,
+      cafItems: state.caf.map(c => ({...c})),
+      caffeine: state.caf.reduce((s, c) => s + c.cups, 0),   // 總杯數，方便分析與舊版相容
+      exercise: state.exercise,
+      exTime: state.exercise !== 'none' ? state.exTime : '',
+      exOther: state.exercise === 'other' ? $('#f-exother').value.trim() : '',
+      exName: !['none','other'].includes(state.exercise) ? exLabel({exercise:state.exercise, exName:data[editingDate]?.exName}) : '',
+      fxNames: Object.fromEntries((state.extra||[]).map(id => [id, fxLabel(id, data[editingDate])])),
+      period: state.period,
+      extra: state.extra,
+      note: $('#f-note').value.trim(),
+      updated: Date.now()
+    };
+    save(); closeSheet(); render();
+    toast('已儲存');
+  });
+  $('#btn-delete').addEventListener('click', async () => {
+    if (!editingDate || !(await ask('確定刪除這筆紀錄？', '刪除', true))) return;
+    delete data[editingDate]; save(); closeSheet(); render(); toast('已刪除');
+  });
+
+  // 首頁、列表裡的按鈕
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'new') openSheet(null);
+    if (b.dataset.act === 'edit') openSheet(b.dataset.date);
+  });
+
+  /* ---------- 設定：匯出 / 匯入 ---------- */
+  function download(name, text, type){
+    const blob = new Blob([text], {type});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  $('#btn-export').addEventListener('click', () => {
+    if (!sorted().length) return toast('沒有資料可以匯出');
+    download(`sleep-backup-${todayISO()}.json`, JSON.stringify({version:2, settings, records:data}, null, 2), 'application/json');
+  });
+  $('#btn-csv').addEventListener('click', () => {
+    const list = sorted().reverse();
+    if (!list.length) return toast('沒有資料可以匯出');
+    const head = ['日期','上床','起床','時數','評分','體感','咖啡因總杯數','咖啡因明細','運動','運動時段','經期','其他因素','備註'];
+    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    const rows = list.map(r => [
+      r.date, r.bed, r.wake, fmtH(durMin(r.bed,r.wake)), r.rating,
+      (r.feel||[]).map(k=>FEEL[k]).join('/'), fmtCups(cafTotal(r)),
+      toCafItems(r).map(c => `${c.label}×${fmtCups(c.cups)}(${CAF_TIME[c.time]})`).join('/'),
+      exLabel(r), EXT[r.exTime]||'',
+      {yes:'經期中',no:'非經期',na:''}[r.period]||'',
+      (r.extra||[]).map(k=>fxLabel(k, r)).join('/'), r.note||''
+    ].map(q).join(','));
+    download(`sleep-${todayISO()}.csv`, '﻿' + [head.map(q).join(','), ...rows].join('\n'), 'text/csv');
+  });
+  $('#btn-import').addEventListener('click', () => $('#file-import').click());
+  $('#file-import').addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const obj = JSON.parse(await file.text());
+      // 新版備份為 {settings, records}；舊版備份直接是紀錄
+      const records = obj.records || obj;
+      const valid = Object.values(records).filter(r => r && r.date && r.bed && r.wake);
+      if (!valid.length) throw 0;
+      valid.forEach(r => data[r.date] = r);
+      if (obj.settings){
+        settings = {...DEFAULT_SETTINGS, ...obj.settings};
+        ['exTypes','fxTypes','cafTypes'].forEach(k => { if (!Array.isArray(settings[k])) settings[k] = DEFAULT_SETTINGS[k]; });
+        saveSettings();
+      }
+      save(); render(); toast(`已匯入 ${valid.length} 筆`);
+    } catch { toast('檔案格式不正確'); }
+    e.target.value = '';
+  });
+  $('#btn-clear').addEventListener('click', async () => {
+    if (!(await ask('確定清除全部紀錄？此動作無法復原，建議先匯出備份。', '清除', true))) return;
+    data = {}; save(); render(); toast('已清除');
+  });
+
+  // 範例資料：刻意讓「下午喝咖啡」「睡前滑手機」「晚上運動」拉低評分，方便測試分析頁
+  $('#btn-demo').addEventListener('click', async () => {
+    if (sorted().length && !(await ask('會加入 30 天範例資料（同日期會被覆蓋），確定？', '加入'))) return;
+    const pick = a => a[Math.floor(Math.random()*a.length)];
+    for (let i=1;i<=30;i++){
+      const d = new Date(); d.setDate(d.getDate()-i);
+      // 0–3 筆咖啡因；約 4 成的日子有下午／晚上喝
+      const nCaf = pick([0,0,1,1,1,2,2,3]);
+      const lateCaf = nCaf > 0 && Math.random() < .4;
+      const types = settings.cafTypes.length ? settings.cafTypes : [{id:'other', label:'其他'}];
+      const cafItems = Array.from({length:nCaf}, (_, k) => {
+        const t = pick(types);
+        return {type:t.id, label:t.label, cups:pick([0.5,1,1,1,2]), time: lateCaf && k === nCaf-1 ? pick(['pm','pm','night']) : 'am'};
+      });
+      const caffeine = cafItems.reduce((s, c) => s + c.cups, 0);
+      const exercise = pick(['none','none','other', ...settings.exTypes.map(t => t.id)]);
+      const exTime = pick(['am','pm','night']);
+      const extra = settings.fxTypes.map(t => t.id).filter(k => k!=='meds' && Math.random() < .25);
+      const period = settings.gender === 'male' ? 'na' : ((i % 28) < 5 ? 'yes' : 'no');
+      let score = 4 + (Math.random()-.5);
+      if (lateCaf) score -= 1.5;
+      if (extra.includes('screen')) score -= 1;
+      if (extra.includes('stress')) score -= .8;
+      if (exercise !== 'none' && exTime === 'night') score -= .8;
+      if (exercise !== 'none' && exTime !== 'night') score += .5;
+      if (period === 'yes') score -= .5;
+      const rating = Math.max(1, Math.min(5, Math.round(score)));
+      const bedM = 22*60 + 30 + Math.floor(Math.random()*150) + (rating<=2?40:0);
+      const wakeM = 6*60 + 30 + Math.floor(Math.random()*90);
+      const feel = [];
+      if (rating <= 2) feel.push(pick(['hardFall','light','wake']));
+      if (lateCaf && Math.random()<.7) feel.push('hardFall');
+      if (rating <= 3 && Math.random()<.4) feel.push('light');
+      data[isoDate(d)] = {
+        date: isoDate(d),
+        bed: scoreToTime(bedM), wake: scoreToTime(wakeM),
+        rating, feel:[...new Set(feel)], cafItems, caffeine,
+        exercise, exTime: exercise!=='none'?exTime:'', exOther: exercise==='other'?pick(['瑜珈','散步','游泳']):'',
+        period, extra, note:'', updated:Date.now()
+      };
+    }
+    save(); toast('已產生範例資料'); go('insight');
+  });
+
+  /* ---------- 其他 ---------- */
+  let tt;
+  function toast(msg){
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2000);
+  }
+  // 跨日回到 App 時刷新首頁
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+
+  // PWA：註冊 Service Worker（需透過 https 或 localhost 開啟）
+  if ('serviceWorker' in navigator && location.protocol !== 'file:'){
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  }
+
+  render('home');
+})();
+</script>
+</body>
+</html>
